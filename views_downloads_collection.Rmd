@@ -12,6 +12,7 @@ library(osfr)
 library(reticulate)
 library(jsonlite)
 library(lubridate)
+library(here)
 
 Sys.setenv(TZ='UTC')
 
@@ -20,5 +21,22 @@ osf_auth <- Sys.getenv("osf_preprintimpact_auth")
 auth_header <- httr::add_headers('Authorization' = paste('Bearer', osf_auth))
 
 use_condaenv(condaenv = "myenv", conda = "/Users/courtneysoderberg/opt/anaconda3/bin/python")
+```
+
+```{r}
+# function to create list of dates to pull
+pull_dates <- function(start_date){
+  dates <- seq(start_date, 
+             start_date + days(13), 
+             by = 'days')
+  
+  return(dates)
+}
+
+preprint_pull_dates <- read_csv(here::here('/eligible_preprints.csv')) %>%
+                    mutate(dates_to_pull = map(date_published, pull_dates)) %>%
+                    unnest(dates_to_pull) %>%
+                    rename(gte = dates_to_pull) %>%
+                    mutate(lt = gte + days(1))
 ```
 
