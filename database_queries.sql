@@ -54,16 +54,53 @@ SELECT COUNT(id) as num_pp, has_coi
 
 
 /* query to pull preprints published during the timewindow that have data statements (some have been publisehd during the timeframe but not have data statements if they entered pre-mod before the time window) */
-SELECT osf_guid._id AS guid, has_coi, osf_abstractprovider._id AS pp_provider, osf_preprint.id AS pp_num, machine_state, date_withdrawn,
-		date_published, log_date, action AS log_action, params ->> 'value' AS log_coi_value, has_data_links, data_links, why_no_data, article_doi
+WITH assertion_changes AS (SELECT osf_preprintlog.created AS log_date, 
+								action AS log_action, 
+								params, 
+								params ->> 'value' AS log_value, 
+								osf_preprintlog.preprint_id,
+								num_data_updates,
+								num_coi_updates,
+								date_published
+							FROM osf_preprintlog
+							LEFT JOIN (SELECT COUNT(*) AS num_data_updates, preprint_id
+											FROM osf_preprintlog
+											WHERE action = 'has_data_links_updated' AND osf_preprintlog.created >= '2020-06-04 14:42:50.148795+00:00'
+											GROUP BY preprint_id) AS data_updates
+							ON osf_preprintlog.preprint_id = data_updates.preprint_id
+							LEFT JOIN (SELECT COUNT(*) AS num_coi_updates, preprint_id
+											FROM osf_preprintlog
+											WHERE action = 'has_coi_updated' AND osf_preprintlog.created >= '2020-06-04 14:42:50.148795+00:00' 
+											GROUP BY preprint_id) AS coi_updates
+							ON osf_preprintlog.preprint_id = coi_updates.preprint_id
+							LEFT JOIN osf_preprint
+							ON osf_preprintlog.preprint_id = osf_preprint.id
+							WHERE (action = 'has_data_links_updated' OR action = 'has_coi_updated') AND 
+								osf_preprintlog.created >= '2020-06-04 14:42:50.148795+00:00' AND 
+								(num_data_updates >1 OR num_coi_updates > 1) AND 
+								date_published >= '2020-06-04 14:42:50.148795+00:00')
+
+SELECT osf_guid._id AS guid, 
+		osf_abstractprovider._id AS pp_provider, 
+		osf_preprint.id AS pp_num, 
+		machine_state, 
+		date_withdrawn,
+		osf_preprint.date_published, 
+		osf_preprint.modified,
+		log_date, 
+		log_action, 
+		log_value, 
+		has_coi, 
+		has_data_links, 
+		data_links, 
+		why_no_data, 
+		article_doi
 	FROM osf_preprint
 	LEFT JOIN osf_guid
 	ON osf_preprint.id = osf_guid.object_id AND content_type_id = 47
 	LEFT JOIN osf_abstractprovider
 	ON osf_preprint.provider_id = osf_abstractprovider.id
-	LEFT JOIN (SELECT created AS log_date, action, params, preprint_id
-					FROM osf_preprintlog
-					WHERE action = 'has_data_links_updated' OR action = 'has_coi_updated') AS statement_logs
-	ON osf_preprint.id = statement_logs.preprint_id
+	LEFT JOIN assertion_changes
+	ON osf_preprint.id = assertion_changes.preprint_id
 	WHERE osf_preprint.created >= '2020-06-04 14:42:50.148795+00:00' AND osf_preprint.created <= '2020-06-25 14:42:50.148795+00:00' AND 
 		provider_id != 7 AND (spam_status IS NULL OR spam_status != 2) AND has_data_links IS NOT NULL AND ever_public IS TRUE AND is_published IS TRUE
