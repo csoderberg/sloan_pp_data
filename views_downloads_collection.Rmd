@@ -60,7 +60,7 @@ headers = {
 post_url = '{}views/'.format(METRICS_BASE)
 
 # set up empty dataframe with the right column names
-views_df = pd.DataFrame(columns=['guid', 'user_id', 'date', 'view_count'])
+views_df = pd.DataFrame(columns=['guid', 'sloan_id', 'data_shown', 'date', 'view_count'])
 empty_lists = 0
 
 # loop through all the guids that need to be called that day
@@ -112,7 +112,8 @@ for i in range(len(pp.guid)):
           }
       }
   }
-  
+}
+}
   
   payload = {
       'data': {
@@ -134,13 +135,21 @@ for i in range(len(pp.guid)):
     for x in range(len(pp_views_byuser)):
       
       # for each person, save their dictionary that contatins their actions
-      user_actions = pp_views_byuser[x][key]
+      user_actions = pp_views_byuser[x]['condition']
       
       # loop through each item in their 'buckets' which in this case is each timestamp
       for j in range(len(user_actions['buckets'])):
-        
-        # append new row with info for the preprint, the user, the timestamp, and the action count
-        views_df = views_df.append({'guid': guid, 'user_id': pp_views_byuser[x]['key'], 'date': user_actions['buckets'][j]['key_as_string'], 'view_count': user_actions['buckets'][j]['doc_count']}, ignore_index= True)
+    
+        sloan_data_cond = user_actions['buckets'][j]['key_as_string']
+        user_views = user_actions['buckets'][j]['views_per_day']['buckets']
+ 
+        for k in range(len(user_views)):
+
+    # append new row with info for the preprint, the user, the timestamp, and the action count
+          new_row = [{'guid':guid,'sloan_id':pp_views_byuser_test[x]['key'],'data_shown':sloan_data_cond,'date':user_views[k]['key_as_string'],'view_count': user_views[k]['doc_count']}]
+    
+          views_df = views_df.append(new_row, ignore_index = True)
+      
   else:
     empty_lists = empty_lists + 1
 ```
