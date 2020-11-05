@@ -33,10 +33,13 @@ pull_dates <- function(start_date){
   return(dates)
 }
 
+# create tibble with all pps and daily pull windows for each
 preprint_pull_dates <- read_csv(here::here('/eligible_preprints.csv')) %>%
                     mutate(dates_to_pull = map(date_published, pull_dates)) %>%
                     unnest(dates_to_pull) %>%
                     rename(gte = dates_to_pull) %>%
-                    mutate(lt = gte + days(1))
+                    mutate(lt = gte + days(1),
+                           lt_string = gsub(" ", "T", lt),
+                           gte_string = gsub(" ", "T", gte))
 ```
 
