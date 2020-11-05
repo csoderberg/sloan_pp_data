@@ -1,0 +1,24 @@
+---
+title: "views_download_collection"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# loading required libraries
+library(tidyverse)
+library(osfr)
+library(reticulate)
+library(jsonlite)
+library(lubridate)
+
+Sys.setenv(TZ='UTC')
+
+url <- 'https://api.osf.io/_/metrics/preprints/'
+osf_auth <- Sys.getenv("osf_preprintimpact_auth")
+auth_header <- httr::add_headers('Authorization' = paste('Bearer', osf_auth))
+
+use_condaenv(condaenv = "myenv", conda = "/Users/courtneysoderberg/opt/anaconda3/bin/python")
+```
+
