@@ -14,4 +14,5 @@ database_data <- read_csv(here::here('/raw_database_output.csv'))
 database_data %>%
   filter(has_data_links != 'not_applicable') %>%
   select(guid, date_published) %>%
+  distinct(guid, .keep_all = T) %>%
   write_csv('eligible_preprints')
