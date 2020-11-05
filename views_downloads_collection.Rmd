@@ -89,9 +89,15 @@ for i in range(len(pp.guid)):
               "aggs": {
                   "users" : {
                       "terms" : {
-                          "field" : "user_id",
+                          "field" : "sloan_id",
                           "size" : 5000
                       },
+                      "aggs" : {
+                      "condition" : {
+                        "terms" : {
+                          "field" : "sloan_data",
+                          "size" : 5000
+                        },
                       "aggs": {
                         "views_per_day" : {
                           "date_histogram" :{
