@@ -44,10 +44,11 @@ preprint_pull_dates <- read_csv(here::here('/eligible_preprints.csv')) %>%
 ```
 
 ```{python}
-pp = r.preprint_pull_dates[0:10] #get pandas df of R object
+pp = r.preprint_pull_dates #get pandas df of R object
 
 import requests
 import pandas as pd
+import time
 
 METRICS_BASE = r.url
 TOKEN = r.osf_auth
@@ -62,6 +63,7 @@ post_url = '{}views/'.format(METRICS_BASE)
 # set up empty dataframe with the right column names
 views_df = pd.DataFrame(columns=['guid', 'sloan_id', 'data_shown', 'date', 'view_count'])
 empty_lists = 0
+calls = 1
 
 # loop through all the guids that need to be called that day
 for i in range(len(pp.guid)):
@@ -99,10 +101,10 @@ for i in range(len(pp.guid)):
                           "size" : 5000
                         },
                       "aggs": {
-                        "views_per_day" : {
+                        "views_per_hour" : {
                           "date_histogram" :{
                             "field":"timestamp",
-                            "interval":"minute",
+                            "interval":"hour",
                             "format": "yyyy-MM-dd HH:mm:ss"
                           }
                         }
@@ -128,29 +130,40 @@ for i in range(len(pp.guid)):
   res = requests.post(post_url, headers=headers, json=payload)
   pp_views_byuser = res.json()['aggregations']['views_timeframe']['users']['buckets']
 
-
-  if len(pp_views_byuser) > 0: # only parse query output if there were actually views/downloads to parse
-    
-    # loop through each person in output
-    for x in range(len(pp_views_byuser)):
-      
-      # for each person, save their dictionary that contatins their actions
-      user_actions = pp_views_byuser[x]['condition']
-      
-      # loop through each item in their 'buckets' which in this case is each timestamp
-      for j in range(len(user_actions['buckets'])):
-    
-        sloan_data_cond = user_actions['buckets'][j]['key_as_string']
-        user_views = user_actions['buckets'][j]['views_per_day']['buckets']
- 
-        for k in range(len(user_views)):
-
-    # append new row with info for the preprint, the user, the timestamp, and the action count
-          new_row = [{'guid':guid,'sloan_id':pp_views_byuser_test[x]['key'],'data_shown':sloan_data_cond,'date':user_views[k]['key_as_string'],'view_count': user_views[k]['doc_count']}]
-    
-          views_df = views_df.append(new_row, ignore_index = True)
-      
+  calls = calls + 1
+  
+  if calls % 100 == 0:
+    time.sleep(1)
+  
   else:
-    empty_lists = empty_lists + 1
+  
+    if len(pp_views_byuser) > 0: # only parse query output if there were actually views/downloads to parse
+    
+      # loop through each person in output
+      for x in range(len(pp_views_byuser)):
+      
+        # for each person, save their dictionary that contatins their actions
+        user_actions = pp_views_byuser[x]['condition']
+      
+        # loop through each item in their 'buckets' which in this case is each timestamp
+        for j in range(len(user_actions['buckets'])):
+    
+          sloan_data_cond = user_actions['buckets'][j]['key_as_string']
+          user_views = user_actions['buckets'][j]['views_per_hour']['buckets']
+ 
+          for k in range(len(user_views)):
+
+            # append new row with info for the preprint, the user, the timestamp, and the action count
+            new_row = [{'guid':guid,'sloan_id':pp_views_byuser[x]['key'],'data_shown':sloan_data_cond,'date':user_views[k]['key_as_string'],'view_count': user_views[k]['doc_count']}]
+    
+            views_df = views_df.append(new_row, ignore_index = True)
+      
+    else:
+      empty_lists = empty_lists + 1
+```
+
+```{r}
+views_by_hour_results <- py$views_df %>%
+                            filter(view_count > 0)
 ```
 
