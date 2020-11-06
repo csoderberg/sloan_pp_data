@@ -23,7 +23,7 @@ auth_header <- httr::add_headers('Authorization' = paste('Bearer', osf_auth))
 use_condaenv(condaenv = "myenv", conda = "/Users/courtneysoderberg/opt/anaconda3/bin/python")
 ```
 
-```{r}
+```{r initial hourly pull table}
 # function to create list of dates to pull
 pull_dates <- function(start_date){
   dates <- seq(start_date, 
@@ -43,7 +43,7 @@ preprint_pull_dates <- read_csv(here::here('/eligible_preprints.csv')) %>%
                            gte_string = gsub(" ", "T", gte))
 ```
 
-```{python}
+```{python hourly views pull}
 pp = r.preprint_pull_dates #get pandas df of R object
 
 import requests
@@ -169,9 +169,20 @@ views_by_hour_results <- views_by_hour_results %>%
                             unnest(view_count)
 
 write_csv(views_by_hour_results, 'views_by_hour_results.csv')
+
+view_for_sec_pulls <- views_by_hour_results %>%
+                          mutate(date = ymd_hms(date)) %>%
+                          filter(view_count > 0) %>%
+                          group_by(guid, sloan_id, data_shown) %>%
+                          summarize(earliest_view = min(date)) %>%
+                          rename(gte = earliest_view) %>%
+                            mutate(lt = gte + hours(1),
+                                     lt_string = gsub(" ", "T", lt),
+                                     gte_string = gsub(" ", "T", gte))
+  
 ```
 
-```{python}
+```{python hourly downloads pull}
 pp = r.preprint_pull_dates #get pandas df of R object
 
 import requests
@@ -290,4 +301,23 @@ for i in range(len(pp.guid)):
       empty_lists = empty_lists + 1
 ```
 
+
+```{r}
+downloads_by_hour_results <- py$downloads_df
+downloads_by_hour_results <- downloads_by_hour_results %>%
+                           as_tibble() %>%
+                            unnest(download_count)
+
+write_csv(downloads_by_hour_results, 'downloads_by_hour_results.csv')
+
+downloads_for_sec_pulls <- downloads_by_hour_results %>%
+                            mutate(date = ymd_hms(date)) %>%
+                            filter(download_count > 0) %>%
+                            group_by(guid, sloan_id, data_shown) %>%
+                            summarize(earliest_view = min(date)) %>%
+                            rename(gte = earliest_view) %>%
+                            mutate(lt = gte + hours(1),
+                                     lt_string = gsub(" ", "T", lt),
+                                     gte_string = gsub(" ", "T", gte))
+```
 
