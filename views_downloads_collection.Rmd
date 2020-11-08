@@ -833,7 +833,7 @@ overall_downloads_by_hour_results <- overall_downloads_by_hour_results %>%
 
 write_csv(overall_downloads_by_hour_results, 'overall_downloads_by_hour_results.csv')
 
-overall_downloads_bysecond_pull <- overall_downloads_by_hour_results %>%
+overall_downloads_byminute_pull <- overall_downloads_by_hour_results %>%
                                       mutate(date = ymd_hms(date)) %>%
                                       filter(download_count > 0) %>%
                                       rename(gte = date) %>%
@@ -843,8 +843,8 @@ overall_downloads_bysecond_pull <- overall_downloads_by_hour_results %>%
                                       
 ```
 
-```{python pull total downloads on pps by second}
-pp = r.overall_downloads_bysecond_pull
+```{python pull total downloads on pps by minute}
+pp = r.overall_downloads_byminute_pull[0:4]
 
 import requests
 import pandas as pd
@@ -861,7 +861,7 @@ headers = {
 post_url = '{}downloads/'.format(METRICS_BASE)
 
 # set up empty dataframe with the right column names
-overall_downloads_persecond_df = pd.DataFrame(columns=['guid', 'date', 'download_count'])
+overall_downloads_perminute_df = pd.DataFrame(columns=['guid', 'date', 'download_count'])
 empty_lists = 0
 calls = 1
 
@@ -889,10 +889,10 @@ for i in range(len(pp.guid)):
                   }
               },
                       "aggs": {
-                        "downloads_per_second" : {
+                        "downloads_per_minute" : {
                           "date_histogram" :{
                             "field":"timestamp",
-                            "interval":"second",
+                            "interval":"minute",
                             "format": "yyyy-MM-dd HH:mm:ss"
                           }
                         }
@@ -912,7 +912,7 @@ for i in range(len(pp.guid)):
   
   # make call using query & payload from above
   res = requests.post(post_url, headers=headers, json=payload)
-  pp_downloads_seconds = res.json()['aggregations']['downloads_timeframe']['downloads_per_second']['buckets']
+  pp_downloads_minute = res.json()['aggregations']['downloads_timeframe']['downloads_per_minute']['buckets']
 
   calls = calls + 1
   
@@ -921,15 +921,15 @@ for i in range(len(pp.guid)):
   
   else:
   
-    if len(pp_downloads_seconds) > 0: # only parse query output if there were actually views/downloads to parse
+    if len(pp_downloads_minute) > 0: # only parse query output if there were actually views/downloads to parse
     
       # loop through each person in output
-      for x in range(len(pp_downloads_seconds)):
+      for x in range(len(pp_downloads_minute)):
       
             # append new row with info for the preprint, the user, the timestamp, and the action count
-        new_row = [{'guid':guid, 'date':pp_downloads_seconds[x]['key_as_string'],'download_count': pp_downloads_seconds[x]['doc_count']}]
+        new_row = [{'guid':guid, 'date':pp_downloads_minute[x]['key_as_string'],'download_count': pp_downloads_minute[x]['doc_count']}]
     
-        overall_downloads_persecond_df = overall_downloads_persecond_df.append(new_row, ignore_index = True)
+        overall_downloads_persminute_df = overall_downloads_perminute_df.append(new_row, ignore_index = True)
       
     else:
       empty_lists = empty_lists + 1
