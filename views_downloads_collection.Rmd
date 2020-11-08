@@ -162,7 +162,7 @@ for i in range(len(pp.guid)):
       empty_lists = empty_lists + 1
 ```
 
-```{r}
+```{r views by hour results}
 views_by_hour_results <- py$views_df
 views_by_hour_results <- views_by_hour_results %>%
                            as_tibble() %>%
@@ -305,7 +305,7 @@ for i in range(len(pp.guid)):
 ```
 
 
-```{r}
+```{r downloads by hour results}
 downloads_by_hour_results <- py$downloads_df
 downloads_by_hour_results <- downloads_by_hour_results %>%
                            as_tibble() %>%
@@ -447,7 +447,7 @@ for i in range(len(pp.guid)):
       empty_lists = empty_lists + 1
 ```
 
-```{r}
+```{r views by minute results}
 views_by_minute_results <- py$views_perminute_df
 
 views_by_minute_results <- views_by_minute_results %>%
@@ -590,7 +590,7 @@ for i in range(len(pp.guid)):
       empty_lists = empty_lists + 1
 ```
 
-```{r}
+```{r views by second results}
 views_by_second_results <- py$views_persecond_df
 
 views_by_second_results <- views_by_second_results %>%
