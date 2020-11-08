@@ -823,5 +823,22 @@ for i in range(len(pp.guid)):
     else:
       empty_lists = empty_lists + 1
 ```
-```
 
+```{r total downloads on pps by hour results}
+overall_downloads_by_hour_results <- py$overall_downloads_perhour_df
+
+overall_downloads_by_hour_results <- overall_downloads_by_hour_results %>%
+                           as_tibble() %>%
+                            unnest(download_count)
+
+write_csv(overall_downloads_by_hour_results, 'overall_downloads_by_hour_results.csv')
+
+overall_downloads_bysecond_pull <- overall_downloads_by_hour_results %>%
+                                      mutate(date = ymd_hms(date)) %>%
+                                      filter(download_count > 0) %>%
+                                      rename(gte = date) %>%
+                                      mutate(lt = gte + hours(1),
+                                               lt_string = gsub(" ", "T", lt),
+                                               gte_string = gsub(" ", "T", gte))
+                                      
+```
