@@ -844,7 +844,7 @@ overall_downloads_byminute_pull <- overall_downloads_by_hour_results %>%
 ```
 
 ```{python pull total downloads on pps by minute}
-pp = r.overall_downloads_byminute_pull[0:4]
+pp = r.overall_downloads_byminute_pull
 
 import requests
 import pandas as pd
@@ -929,9 +929,30 @@ for i in range(len(pp.guid)):
             # append new row with info for the preprint, the user, the timestamp, and the action count
         new_row = [{'guid':guid, 'date':pp_downloads_minute[x]['key_as_string'],'download_count': pp_downloads_minute[x]['doc_count']}]
     
-        overall_downloads_persminute_df = overall_downloads_perminute_df.append(new_row, ignore_index = True)
+        overall_downloads_perminute_df = overall_downloads_perminute_df.append(new_row, ignore_index = True)
       
     else:
       empty_lists = empty_lists + 1
 ```
+
+```{r total downloads on pps by hour results}
+overall_downloads_by_minute_results <- py$overall_downloads_perminute_df
+
+overall_downloads_by_minute_results <- overall_downloads_by_minute_results %>%
+                           as_tibble() %>%
+                            unnest(download_count)
+
+write_csv(overall_downloads_by_minute_results, 'overall_downloads_by_minute_results.csv')
+
+overall_downloads_bysecond_pull <- overall_downloads_by_minute_results %>%
+                                      mutate(date = ymd_hms(date)) %>%
+                                      filter(download_count > 0) %>%
+                                      rename(gte = date) %>%
+                                      mutate(lt = gte + hours(1),
+                                               lt_string = gsub(" ", "T", lt),
+                                               gte_string = gsub(" ", "T", gte))
+                                      
+```
+
+
 
