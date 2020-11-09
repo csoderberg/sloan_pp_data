@@ -1270,7 +1270,7 @@ for i in range(len(pp.guid)):
 ```
 
 
-```{r views by hour no1+1}
+```{r views by hour no sloan_id}
 views_byhour_nosloanid <- py$views_byhour_nosloanid %>%
                                       as_tibble() %>%
                                       unnest(view_count)
@@ -1421,4 +1421,291 @@ for i in range(len(pp.guid)):
       empty_lists = empty_lists + 1
 ```
 
+```{r views by second no1+1}
+views_bysecond_nosloanid <- py$views_bysecond_nosloanid %>%
+                                      as_tibble() %>%
+                                      unnest(view_count)
 
+write_csv(views_bysecond_nosloanid, 'views_bysecond_nosloanid.csv')
+```
+
+
+```{python get missing sloan_id pp downloads}
+pp = r.preprint_pull_dates #get pandas df of R object
+
+import requests
+import pandas as pd
+import time
+
+METRICS_BASE = r.url
+TOKEN = r.osf_auth
+
+headers = {
+    'Content-Type': 'application/vnd.api+json',
+    'Authorization': 'Bearer {}'.format(TOKEN)
+}
+
+post_url = '{}downloads/'.format(METRICS_BASE)
+
+# set up empty dataframe with the right column names
+downloads_byhour_nosloanid = pd.DataFrame(columns=['guid', 'user_id', 'data_shown', 'date', 'download_count'])
+empty_lists = 0
+calls = 1
+
+# loop through all the guids that need to be called that day
+for i in range(len(pp.guid)):
+
+  # get guid, and start and end days to use in query for each preprint
+  lte_date = pp['lt_string'][i]
+  gte_date = pp['gte_string'][i]
+  guid = pp['guid'][i]
+  
+  
+  # set up query for getting downloads per preprint per user_id in timeframe
+  query = {
+      "query": {
+    "bool": {
+      "must": {
+        "term" : {"preprint_id" : guid}
+      },
+      "must_not": {
+        "exists": {
+          "field": "sloan_id"
+        }
+      }
+    }
+  },
+       "aggs" : {
+          "downloads_timeframe": {
+              "filter": {
+                  "range" : {
+                      "timestamp" : {
+                          "gte" : gte_date,
+                          "lte" : lte_date
+                      }
+                  }
+              },
+              "aggs": {
+                  "users" : {
+                      "terms" : {
+                          "field" : "user_id",
+                          "size" : 5000
+                      },
+                      "aggs" : {
+                      "condition" : {
+                        "terms" : {
+                          "field" : "sloan_data",
+                          "size" : 5000
+                        },
+                      "aggs": {
+                        "downloads_per_hour" : {
+                          "date_histogram" :{
+                            "field":"timestamp",
+                            "interval":"hour",
+                            "format": "yyyy-MM-dd HH:mm:ss"
+                          }
+                        }
+                      }
+                  }
+              }
+          }
+      }
+  }
+}
+}
+  
+  payload = {
+      'data': {
+          'type': 'preprint_metrics',
+          'attributes': {
+              'query': query
+          }
+      }
+  }
+  
+  # make call using query & payload from above
+  res = requests.post(post_url, headers=headers, json=payload)
+  pp_downloads_byuser_guid_byhour = res.json()['aggregations']['downloads_timeframe']['users']['buckets']
+
+  calls = calls + 1
+  
+  if calls % 100 == 0:
+    time.sleep(1)
+  
+  else:
+  
+    if len(pp_downloads_byuser_guid_byhour) > 0: # only parse query output if there were actually views/downloads to parse
+    
+      # loop through each person in output
+      for x in range(len(pp_downloads_byuser_guid_byhour)):
+      
+        # for each person, save their dictionary that contatins their actions
+        user_actions = pp_downloads_byuser_guid_byhour[x]['condition']
+      
+        # loop through each item in their 'buckets' which in this case is each timestamp
+        for j in range(len(user_actions['buckets'])):
+    
+          sloan_data_cond = user_actions['buckets'][j]['key_as_string']
+          user_downloads = user_actions['buckets'][j]['downloads_per_hour']['buckets']
+ 
+          for k in range(len(user_downloads)):
+
+            # append new row with info for the preprint, the user, the timestamp, and the action count
+            new_row = [{'guid':guid,'user_id':pp_downloads_byuser_guid_byhour[x]['key'],'data_shown':sloan_data_cond,'date':user_downloads[k]['key_as_string'],'download_count': user_downloads[k]['doc_count']}]
+    
+            downloads_byhour_nosloanid = downloads_byhour_nosloanid.append(new_row, ignore_index = True)
+      
+    else:
+      empty_lists = empty_lists + 1
+```
+
+
+```{r downloads by hour no sloan_id}
+downloads_byhour_nosloanid <- py$downloads_byhour_nosloanid %>%
+                                      as_tibble() %>%
+                                      unnest(download_count)
+
+write_csv(downloads_byhour_nosloanid, 'downloads_byhour_nosloanid.csv')
+
+downloads_bysecond_nosloanid_pull <- downloads_byhour_nosloanid %>%
+                                    mutate(date = ymd_hms(date)) %>%
+                                    filter(download_count > 0) %>%
+                                    group_by(guid, user_id, data_shown) %>%
+                                    summarize(earliest_download = min(date)) %>%
+                                    ungroup() %>%
+                                    select(guid, earliest_download) %>% 
+                                    distinct(.keep_all = T) %>%
+                                    rename(gte = earliest_download) %>%
+                                      mutate(lt = gte + hours(1),
+                                               lt_string = gsub(" ", "T", lt),
+                                               gte_string = gsub(" ", "T", gte))
+```
+
+```{python get missing sloan_id pp downloads per second}
+pp = r.downloads_bysecond_nosloanid_pull #get pandas df of R object
+
+import requests
+import pandas as pd
+import time
+
+METRICS_BASE = r.url
+TOKEN = r.osf_auth
+
+headers = {
+    'Content-Type': 'application/vnd.api+json',
+    'Authorization': 'Bearer {}'.format(TOKEN)
+}
+
+post_url = '{}downloads/'.format(METRICS_BASE)
+
+# set up empty dataframe with the right column names
+downloads_bysecond_nosloanid = pd.DataFrame(columns=['guid', 'user_id', 'data_shown', 'date', 'download_count'])
+empty_lists = 0
+calls = 1
+
+# loop through all the guids that need to be called that day
+for i in range(len(pp.guid)):
+
+  # get guid, and start and end days to use in query for each preprint
+  lte_date = pp['lt_string'][i]
+  gte_date = pp['gte_string'][i]
+  guid = pp['guid'][i]
+  
+  
+  # set up query for getting downloads per preprint per user_id in timeframe
+  query = {
+      "query": {
+    "bool": {
+      "must": {
+        "term" : {"preprint_id" : guid}
+      },
+      "must_not": {
+        "exists": {
+          "field": "sloan_id"
+        }
+      }
+    }
+  },
+       "aggs" : {
+          "downloads_timeframe": {
+              "filter": {
+                  "range" : {
+                      "timestamp" : {
+                          "gte" : gte_date,
+                          "lte" : lte_date
+                      }
+                  }
+              },
+              "aggs": {
+                  "users" : {
+                      "terms" : {
+                          "field" : "user_id",
+                          "size" : 5000
+                      },
+                      "aggs" : {
+                      "condition" : {
+                        "terms" : {
+                          "field" : "sloan_data",
+                          "size" : 5000
+                        },
+                      "aggs": {
+                        "downloads_per_second" : {
+                          "date_histogram" :{
+                            "field":"timestamp",
+                            "interval":"second",
+                            "format": "yyyy-MM-dd HH:mm:ss"
+                          }
+                        }
+                      }
+                  }
+              }
+          }
+      }
+  }
+}
+}
+  
+  payload = {
+      'data': {
+          'type': 'preprint_metrics',
+          'attributes': {
+              'query': query
+          }
+      }
+  }
+  
+  # make call using query & payload from above
+  res = requests.post(post_url, headers=headers, json=payload)
+  pp_downloads_byuser_guid_bysecond = res.json()['aggregations']['downloads_timeframe']['users']['buckets']
+
+  calls = calls + 1
+  
+  if calls % 100 == 0:
+    time.sleep(1)
+  
+  else:
+  
+    if len(pp_downloads_byuser_guid_bysecond) > 0: # only parse query output if there were actually views/downloads to parse
+    
+      # loop through each person in output
+      for x in range(len(pp_downloads_byuser_guid_bysecond)):
+      
+        # for each person, save their dictionary that contatins their actions
+        user_actions = pp_downloads_byuser_guid_bysecond[x]['condition']
+      
+        # loop through each item in their 'buckets' which in this case is each timestamp
+        for j in range(len(user_actions['buckets'])):
+    
+          sloan_data_cond = user_actions['buckets'][j]['key_as_string']
+          user_downloads = user_actions['buckets'][j]['downloads_per_second']['buckets']
+ 
+          for k in range(len(user_downloads)):
+
+            # append new row with info for the preprint, the user, the timestamp, and the action count
+            new_row = [{'guid':guid,'user_id':pp_downloads_byuser_guid_bysecond[x]['key'],'data_shown':sloan_data_cond,'date':user_downloads[k]['key_as_string'],'download_count': user_downloads[k]['doc_count']}]
+    
+            downloads_bysecond_nosloanid = downloads_bysecond_nosloanid.append(new_row, ignore_index = True)
+      
+    else:
+      empty_lists = empty_lists + 1
+```
