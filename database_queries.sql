@@ -104,3 +104,15 @@ SELECT osf_guid._id AS guid,
 	ON osf_preprint.id = assertion_changes.preprint_id
 	WHERE osf_preprint.date_published >= '2020-06-04 14:42:50.148795+00:00' AND osf_preprint.date_published <= '2020-06-25 14:42:50.148795+00:00' AND 
 		provider_id != 7 AND (spam_status IS NULL OR spam_status != 2) AND has_data_links IS NOT NULL AND ever_public IS TRUE AND is_published IS TRUE
+
+/* get contributors for all pps with non-NA data statements published during the time period*/
+SELECT _id AS preprint_guid, user_guid
+	FROM osf_preprint
+	LEFT JOIN osf_guid
+	ON osf_preprint.id = osf_guid.object_id AND content_type_id = 47
+	LEFT JOIN (SELECT preprint_id, user_id, _id AS user_guid
+				FROM osf_preprintcontributor
+				LEFT JOIN osf_guid
+				ON osf_guid.object_id = osf_preprintcontributor.user_id AND content_type_id = 18) AS constributors
+	ON osf_preprint.id = constributors.preprint_id
+	WHERE (has_data_links = 'no' OR has_data_links = 'available') AND osf_preprint.date_published >= '2020-06-04 14:42:50.148795+00:00' AND osf_preprint.date_published <= '2020-06-25 14:42:50.148795+00:00' AND (spam_status IS NULL OR spam_status != 2) AND provider_id != 7
