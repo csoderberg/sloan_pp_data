@@ -30,14 +30,42 @@ m1 <- brm(download ~ pp_published + data_shown_blinded + has_data_links_blinded 
          iter = 3000,
          chains = 4,
          inits = '0',
-         cores = 2,
-         seed = 1,
-         priors = priors)
+         cores = 4,
+         seed = 1)
 
+# low bulk ESS for intercept, and low levels of mixing in chains for intercept and random intercept for participants
 plot(m1)
 pairs(m1)
 summary(m1)
 WAIC(m1)
+
+# what is the distribution of number of pps viewed?
+overall_data_blinded %>%
+ group_by(participant_id) %>%
+ tally() %>%
+ ungroup() %>%
+ rename(preprints_viewed = 'n') %>%
+ group_by(preprints_viewed) %>%
+ tally() %>%
+ mutate(perc_sample = round(100 * n/sum(n),2))
+
+# create dataset of only single pp viewers
+single_viewers_blinded <- overall_data_blinded %>%
+                                group_by(participant_id) %>%
+                                mutate(pp_viewed = n()) %>%
+                                filter(pp_viewed == 1)
+
+# model without random participant intercept, only using those who viewed only 1 pp & random intercept for guid
+m1a <- brm(download ~ pp_published + data_shown_blinded + has_data_links_blinded + data_shown_blinded * has_data_links_blinded + (1|guid),
+           data = single_viewers_blinded,
+           family = bernoulli(link = 'logit'),
+           warmup = 1500,
+           iter = 3000,
+           chains = 4,
+           inits = '0',
+           cores = 4,
+           seed = 10)
+
 
 # include provider level intercepts
 m2 <- brm(download ~ pp_published + data_shown_blinded + has_data_links_blinded + data_shown_blinded * has_data_links_blinded + (1|participant_id) + (1|guid) + (1|pp_provider),
