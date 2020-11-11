@@ -84,6 +84,13 @@ m2a <- brm(download ~ pp_published + data_shown_blinded + has_data_links_blinded
      cores = 4,
      seed = 2)
 
+summary(m2a)
+plot(m2a)
+pairs(m2a)
+WAIC(m2a)
+pp_check(m2a)
+pp_check(m2a, type = "stat", stat = 'median')
+
 # include provider level slopes
 m3 <- brm(download ~ pp_published + data_shown_blinded + has_data_links_blinded + data_shown_blinded * has_data_links_blinded + 
        (1|participant_id) + (1|guid) + (data_shown_blinded + has_data_links_blinded + data_shown_blinded * has_data_links_blinded +1|pp_provider),
