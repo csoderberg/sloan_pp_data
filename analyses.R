@@ -16,16 +16,28 @@ overall_data_blinded <- read_csv(here::here('overall_data_blinded.csv'),
                                    pp_published = as.factor(pp_published),
                                    pp_published = fct_relevel(pp_published, c('no', 'yes')))
 
+# set priors
+priors <- c(set_prior("student_t(3, 0, 10)", "Intercept"),
+            set_prior("student_t(3, 0, 2.5)", "b"),
+            set_prior("cauchy(0, 2.5)", "sd"),
+            set_prior("cauchy(0, 2.5)", "sigma"))
+
 # basic model (not including provider level)
 m1 <- brm(download ~ pp_published + data_shown_blinded + has_data_links_blinded + data_shown_blinded * has_data_links_blinded + (1|participant_id) + (1|guid),
          data = overall_data_blinded,
          family = bernoulli(link = 'logit'),
-         warmup = 500,
-         iter = 2000,
-         chains = 2,
+         warmup = 1500,
+         iter = 3000,
+         chains = 4,
          inits = '0',
          cores = 2,
-         seed = 1)
+         seed = 1,
+         priors = priors)
+
+plot(m1)
+pairs(m1)
+summary(m1)
+WAIC(m1)
 
 # include provider level intercepts
 m2 <- brm(download ~ pp_published + data_shown_blinded + has_data_links_blinded + data_shown_blinded * has_data_links_blinded + (1|participant_id) + (1|guid) + (1|pp_provider),
