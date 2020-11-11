@@ -2,6 +2,20 @@
 library(tidyverse)
 library(brms)
 
+#load blinded dataset
+overall_data_blinded <- read_csv(here::here('overall_data_blinded.csv'),
+                                 col_types = cols(date_withdrawn = col_datetime())) %>%
+                            select(-X1) %>% #remove row numbers
+                            filter(has_data_links_blinded != 'not_applicable') %>% # remove views that happened while assertion was 'not applicable'
+                            mutate(has_data_links_blinded = as.factor(has_data_links_blinded),
+                                   has_data_links_blinded = fct_relevel(has_data_links_blinded, c('no', 'available')),
+                                   data_shown_blinded = as.factor(data_shown_blinded),
+                                   data_shown_blinded = fct_relevel(data_shown_blinded, c('FALSE', 'TRUE'))) %>%
+                            mutate(pp_published = case_when(is.na(article_doi) ~ 'no',
+                                                                 !is.na(article_doi) ~ 'yes'),
+                                   pp_published = as.factor(pp_published),
+                                   pp_published = fct_relevel(pp_published, c('no', 'yes')))
+
 # basic model (not including provider level)
 brms(download ~ article_doi + data_shown_blinded + has_data_links_blinded + data_shown_blinded * has_data_links_blinded + (1|participant_id) + (1|guid),
      family = bernoulli(link = 'logit'),
