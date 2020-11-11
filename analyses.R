@@ -66,16 +66,22 @@ m1a <- brm(download ~ pp_published + data_shown_blinded + has_data_links_blinded
            cores = 4,
            seed = 10)
 
+summary(m1a)
+plot(m1a)
+pairs(m1a)
+WAIC(m1a)
+pp_check(m1a)
+pp_check(m1a, type = "stat", stat = 'median')
 
-# include provider level intercepts
-m2 <- brm(download ~ pp_published + data_shown_blinded + has_data_links_blinded + data_shown_blinded * has_data_links_blinded + (1|participant_id) + (1|guid) + (1|pp_provider),
+# include provider level intercepts (with guid nested within provider)
+m2a <- brm(download ~ pp_published + data_shown_blinded + has_data_links_blinded + data_shown_blinded * has_data_links_blinded + (1|pp_provider/guid),
      family = bernoulli(link = 'logit'),
-     data = overall_data_blinded,
-     warmup = 500,
-     iter = 2000,
-     chains = 2,
+     data = single_viewers_blinded,
+     warmup = 1500,
+     iter = 3000,
+     chains = 4,
      inits = '0',
-     cores = 2,
+     cores = 4,
      seed = 2)
 
 # include provider level slopes
