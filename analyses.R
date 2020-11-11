@@ -17,7 +17,7 @@ overall_data_blinded <- read_csv(here::here('overall_data_blinded.csv'),
                                    pp_published = fct_relevel(pp_published, c('no', 'yes')))
 
 # basic model (not including provider level)
-brms(download ~ article_doi + data_shown_blinded + has_data_links_blinded + data_shown_blinded * has_data_links_blinded + (1|participant_id) + (1|guid),
+brms(download ~ pp_published + data_shown_blinded + has_data_links_blinded + data_shown_blinded * has_data_links_blinded + (1|participant_id) + (1|guid),
      family = bernoulli(link = 'logit'),
      warmup = 500,
      iter = 2000,
@@ -27,7 +27,7 @@ brms(download ~ article_doi + data_shown_blinded + has_data_links_blinded + data
      seed = 1)
 
 # include provider level intercepts
-brms(download ~ article_doi + data_shown_blinded + has_data_links_blinded + data_shown_blinded * has_data_links_blinded + (1|participant_id) + (1|guid) + (1|pp_provider),
+brms(download ~ pp_published + data_shown_blinded + has_data_links_blinded + data_shown_blinded * has_data_links_blinded + (1|participant_id) + (1|guid) + (1|pp_provider),
      family = bernoulli(link = 'logit'),
      warmup = 500,
      iter = 2000,
@@ -37,7 +37,7 @@ brms(download ~ article_doi + data_shown_blinded + has_data_links_blinded + data
      seed = 2)
 
 # include provider level slopes
-brms(download ~ article_doi + data_shown_blinded + has_data_links_blinded + data_shown_blinded * has_data_links_blinded + 
+brms(download ~ pp_published + data_shown_blinded + has_data_links_blinded + data_shown_blinded * has_data_links_blinded + 
        (1|participant_id) + (1|guid) + (data_shown_blinded + has_data_links_blinded + data_shown_blinded * has_data_links_blinded +1|pp_provider),
      family = bernoulli(link = 'logit'),
      warmup = 500,
