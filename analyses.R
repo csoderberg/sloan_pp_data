@@ -17,18 +17,18 @@ overall_data_blinded <- read_csv(here::here('overall_data_blinded.csv'),
                                    pp_published = fct_relevel(pp_published, c('no', 'yes')))
 
 # basic model (not including provider level)
-brms(download ~ pp_published + data_shown_blinded + has_data_links_blinded + data_shown_blinded * has_data_links_blinded + (1|participant_id) + (1|guid),
-     data = overall_data_blinded,
-     family = bernoulli(link = 'logit'),
-     warmup = 500,
-     iter = 2000,
-     chains = 2,
-     inits = '0',
-     cores = 2,
-     seed = 1)
+m1 <- brm(download ~ pp_published + data_shown_blinded + has_data_links_blinded + data_shown_blinded * has_data_links_blinded + (1|participant_id) + (1|guid),
+         data = overall_data_blinded,
+         family = bernoulli(link = 'logit'),
+         warmup = 500,
+         iter = 2000,
+         chains = 2,
+         inits = '0',
+         cores = 2,
+         seed = 1)
 
 # include provider level intercepts
-brms(download ~ pp_published + data_shown_blinded + has_data_links_blinded + data_shown_blinded * has_data_links_blinded + (1|participant_id) + (1|guid) + (1|pp_provider),
+m2 <- brm(download ~ pp_published + data_shown_blinded + has_data_links_blinded + data_shown_blinded * has_data_links_blinded + (1|participant_id) + (1|guid) + (1|pp_provider),
      family = bernoulli(link = 'logit'),
      data = overall_data_blinded,
      warmup = 500,
@@ -39,7 +39,7 @@ brms(download ~ pp_published + data_shown_blinded + has_data_links_blinded + dat
      seed = 2)
 
 # include provider level slopes
-brms(download ~ pp_published + data_shown_blinded + has_data_links_blinded + data_shown_blinded * has_data_links_blinded + 
+m3 <- brm(download ~ pp_published + data_shown_blinded + has_data_links_blinded + data_shown_blinded * has_data_links_blinded + 
        (1|participant_id) + (1|guid) + (data_shown_blinded + has_data_links_blinded + data_shown_blinded * has_data_links_blinded +1|pp_provider),
      data = overall_data_blinded,
      family = bernoulli(link = 'logit'),
