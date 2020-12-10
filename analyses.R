@@ -1,6 +1,10 @@
 #loading libraries
 library(tidyverse)
 library(brms)
+library(ggeffects)
+library(here)
+
+#### analysis on blinded data ####
 
 #load blinded dataset
 overall_data_blinded <- read_csv(here::here('overall_data_blinded.csv'),
@@ -55,50 +59,94 @@ single_viewers_blinded <- overall_data_blinded %>%
                                 mutate(pp_viewed = n()) %>%
                                 filter(pp_viewed == 1)
 
+# model without any random terms
+m0a <- brm(download ~ pp_published + data_shown_blinded + has_data_links_blinded + data_shown_blinded * has_data_links_blinded,
+           data = single_viewers_blinded,
+           family = bernoulli(link = 'logit'),
+           warmup = 500,
+           iter = 2000,
+           chains = 2,
+           inits = '0',
+           cores = 4,
+           seed = 10)
+
+m0a_waic <- WAIC(m0a)
+
 # model without random participant intercept, only using those who viewed only 1 pp & random intercept for guid
 m1a <- brm(download ~ pp_published + data_shown_blinded + has_data_links_blinded + data_shown_blinded * has_data_links_blinded + (1|guid),
            data = single_viewers_blinded,
            family = bernoulli(link = 'logit'),
-           warmup = 1500,
-           iter = 3000,
-           chains = 4,
+           warmup = 500,
+           iter = 2000,
+           chains = 2,
            inits = '0',
            cores = 4,
            seed = 10)
 
 summary(m1a)
+exp(fixef(m1a))
+
 plot(m1a)
 pairs(m1a)
-WAIC(m1a)
+m1a_waic <- WAIC(m1a)
 pp_check(m1a)
 pp_check(m1a, type = "stat", stat = 'median')
 
+
+m1a_predictions <- ggpredict(m1a, c('data_shown_blinded', 'has_data_links_blinded'))
+plot(m1a_predictions)
+
 # include provider level intercepts (with guid nested within provider)
-m2a <- brm(download ~ pp_published + data_shown_blinded + has_data_links_blinded + data_shown_blinded * has_data_links_blinded + (1|pp_provider/guid),
+m2a <- brm(download ~ pp_published + data_shown_blinded + has_data_links_blinded + data_shown_blinded * has_data_links_blinded + (1|pp_provider) + (1|guid),
      family = bernoulli(link = 'logit'),
      data = single_viewers_blinded,
      warmup = 1500,
      iter = 3000,
-     chains = 4,
+     chains = 2,
      inits = '0',
      cores = 4,
-     seed = 2)
+     seed = 20)
 
 summary(m2a)
 plot(m2a)
 pairs(m2a)
-WAIC(m2a)
+m2a_waic <- WAIC(m2a)
 pp_check(m2a)
 pp_check(m2a, type = "stat", stat = 'median')
 
-# include provider level slopes
-m3 <- brm(download ~ pp_published + data_shown_blinded + has_data_links_blinded + data_shown_blinded * has_data_links_blinded + 
-       (1|participant_id) + (1|guid) + (data_shown_blinded + has_data_links_blinded + data_shown_blinded * has_data_links_blinded +1|pp_provider),
+m2a_predictions <- ggpredict(m2a, c('data_shown_blinded', 'has_data_links_blinded'))
+plot(m2a_predictions)
+
+# include guid level slopes
+m3a <- brm(download ~ pp_published + data_shown_blinded + has_data_links_blinded + data_shown_blinded * has_data_links_blinded + 
+        (1 | pp_provider) + (data_shown_blinded | guid),
      data = overall_data_blinded,
      family = bernoulli(link = 'logit'),
-     warmup = 500,
-     iter = 2000,
+     warmup = 1500,
+     iter = 3000,
      chains = 2,
      inits = '0',
-     cores = 2,
-     seed = 3)
+     cores = 4,
+     seed = 30)
+
+summary(m3a)
+plot(m3a)
+pp_check(m3a)
+m3a_waic <- WAIC(m3a)
+
+# include provider level interaction random slopes
+m4a <- brm(download ~ pp_published + data_shown_blinded + has_data_links_blinded + data_shown_blinded * has_data_links_blinded + 
+                   (data_shown_blinded * has_data_links_blinded | pp_provider) + (data_shown_blinded | guid),
+           data = overall_data_blinded,
+           family = bernoulli(link = 'logit'),
+           warmup = 1500,
+           iter = 3000,
+           chains = 2,
+           inits = '0',
+           cores = 4,
+           seed = 40)
+
+summary(m4a)
+plot(m4a)
+pp_check(m4a)
+m4a_waic <- WAIC(m4a)
