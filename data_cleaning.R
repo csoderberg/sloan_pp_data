@@ -18,6 +18,10 @@ downloads_user_sloan_ids <- read_csv(here::here('downloader_user_guids.csv'))
 preprint_contributors <- read_csv(here::here('preprint_contributors.csv'))
 preprint_info <- read_csv(here::here('/raw_database_output.csv'))
 
+# overall downloads by second
+downloads_by_second <- read_csv(here::here('overall_downloads_by_second_results.csv'))
+
+
 # create clean file of earlierst view by each participant for each preprint
 views_user_ids <- views_user_ids %>%
                     filter(view_count > 0) %>%
@@ -163,5 +167,18 @@ overall_data <- retained_metrics %>%
                   group_by(participant_id, guid) %>%
                   filter(view_state == max(view_state)) %>%
                   ungroup()
+
+# create cumulative downloads for all view times
+downloads_by_second <- downloads_by_second %>%
+  full_join(overall_data %>% select(guid, earliest_view), 
+            by = c('guid', 'date' = 'earliest_view')) %>%
+  mutate(download_count = case_when(!is.na(download_count) ~ download_count,
+                                      is.na(download_count) ~ 0)) %>%
+  group_by(guid) %>%
+  arrange(date) %>%
+  mutate(cum_downloads = cumsum(download_count))
+
+overall_data <- overall_data %>% 
+                    left_join(downloads_by_second, by = c('guid', 'earliest_view' = 'date'))
 
 write_csv(overall_data, 'overall_data.csv')

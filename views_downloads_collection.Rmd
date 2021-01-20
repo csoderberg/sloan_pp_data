@@ -304,7 +304,6 @@ for i in range(len(pp.guid)):
       empty_lists = empty_lists + 1
 ```
 
-
 ```{r downloads by hour results}
 downloads_by_hour_results <- py$downloads_df
 downloads_by_hour_results <- downloads_by_hour_results %>%
@@ -600,8 +599,6 @@ views_by_second_results <- views_by_second_results %>%
 write_csv(views_by_second_results, 'views_by_second_results.csv')
 ```
 
-
-
 ```{python second download pull}
 pp = r.downloads_for_sec_pulls
 
@@ -730,7 +727,6 @@ downloads_by_second_results <- downloads_by_second_results %>%
 
 write_csv(downloads_by_second_results, 'downloads_by_second_results.csv')
 ```
-
 
 ```{python pull total downloads on pps by hour}
 pp = r.preprint_pull_dates
@@ -935,7 +931,7 @@ for i in range(len(pp.guid)):
       empty_lists = empty_lists + 1
 ```
 
-```{r total downloads on pps by hour results}
+```{r total downloads on pps by minutes results}
 overall_downloads_by_minute_results <- py$overall_downloads_perminute_df
 
 overall_downloads_by_minute_results <- overall_downloads_by_minute_results %>%
@@ -948,13 +944,112 @@ overall_downloads_bysecond_pull <- overall_downloads_by_minute_results %>%
                                       mutate(date = ymd_hms(date)) %>%
                                       filter(download_count > 0) %>%
                                       rename(gte = date) %>%
-                                      mutate(lt = gte + hours(1),
+                                      mutate(lt = gte + minutes(1),
                                                lt_string = gsub(" ", "T", lt),
                                                gte_string = gsub(" ", "T", gte))
                                       
 ```
 
+```{python pull total downloads on pps by second}
+pp = r.overall_downloads_bysecond_pull
 
+import requests
+import pandas as pd
+import time
+
+METRICS_BASE = r.url
+TOKEN = r.osf_auth
+
+headers = {
+    'Content-Type': 'application/vnd.api+json',
+    'Authorization': 'Bearer {}'.format(TOKEN)
+}
+
+post_url = '{}downloads/'.format(METRICS_BASE)
+
+# set up empty dataframe with the right column names
+overall_downloads_persecond_df = pd.DataFrame(columns=['guid', 'date', 'download_count'])
+empty_lists = 0
+calls = 1
+
+# loop through all the guids that need to be called that day
+for i in range(len(pp.guid)):
+
+  # get guid, and start and end days to use in query for each preprint
+  lte_date = pp['lt_string'][i]
+  gte_date = pp['gte_string'][i]
+  guid = pp['guid'][i]
+  
+  # set up query for getting downloads per preprint per user_id in timeframe
+  query = {
+      "query": {
+           "term" : { "preprint_id" : guid } # example pp guid
+      },
+       "aggs" : {
+          "downloads_timeframe": {
+              "filter": {
+                  "range" : {
+                      "timestamp" : {
+                          "gte" : gte_date,
+                          "lte" : lte_date
+                      }
+                  }
+              },
+                      "aggs": {
+                        "downloads_per_second" : {
+                          "date_histogram" :{
+                            "field":"timestamp",
+                            "interval":"second",
+                            "format": "yyyy-MM-dd HH:mm:ss"
+                          }
+                        }
+                      }
+                  }
+              }
+          }
+  
+  payload = {
+      'data': {
+          'type': 'preprint_metrics',
+          'attributes': {
+              'query': query
+          }
+      }
+  }
+  
+  # make call using query & payload from above
+  res = requests.post(post_url, headers=headers, json=payload)
+  pp_downloads_second = res.json()['aggregations']['downloads_timeframe']['downloads_per_second']['buckets']
+
+  calls = calls + 1
+  
+  if calls % 100 == 0:
+    time.sleep(1)
+  
+  else:
+  
+    if len(pp_downloads_second) > 0: # only parse query output if there were actually views/downloads to parse
+    
+      # loop through each person in output
+      for x in range(len(pp_downloads_second)):
+      
+            # append new row with info for the preprint, the user, the timestamp, and the action count
+        new_row = [{'guid':guid, 'date':pp_downloads_second[x]['key_as_string'],'download_count': pp_downloads_second[x]['doc_count']}]
+    
+        overall_downloads_persecond_df = overall_downloads_persecond_df.append(new_row, ignore_index = True)
+      
+    else:
+      empty_lists = empty_lists + 1
+```
+
+```{r}
+overall_downloads_by_second_results <- py$overall_downloads_persecond_df
+
+overall_downloads_by_second_results <- overall_downloads_by_second_results %>%
+                                        as_tibble() %>% unnest(download_count)
+
+write_csv(overall_downloads_by_second_results, 'overall_downloads_by_second_results.csv')
+```
 
 
 ```{python user_ids for all views pull}
@@ -1042,7 +1137,7 @@ for x in range(len(pp_view_user_guids)):
       view_user_guids_df = view_user_guids_df.append(new_row, ignore_index = True)
 ```
 
-```{python user_ids for all views pull}
+```{python user_ids for all downloads pull}
 import requests
 import pandas as pd
 
@@ -1126,7 +1221,6 @@ for x in range(len(pp_download_user_ids)):
     
       download_user_ids_df = download_user_ids_df.append(new_row, ignore_index = True)
 ```
-
 
 ```{r save user_guids for sloan_ids views and download files}
 viewer_user_guids <- py$view_user_guids_df %>%
@@ -1268,7 +1362,6 @@ for i in range(len(pp.guid)):
     else:
       empty_lists = empty_lists + 1
 ```
-
 
 ```{r views by hour no sloan_id}
 views_byhour_nosloanid <- py$views_byhour_nosloanid %>%
@@ -1421,14 +1514,13 @@ for i in range(len(pp.guid)):
       empty_lists = empty_lists + 1
 ```
 
-```{r views by second no1+1}
+```{r views by second no sloan_id}
 views_bysecond_nosloanid <- py$views_bysecond_nosloanid %>%
                                       as_tibble() %>%
                                       unnest(view_count)
 
 write_csv(views_bysecond_nosloanid, 'views_bysecond_nosloanid.csv')
 ```
-
 
 ```{python get missing sloan_id pp downloads}
 pp = r.preprint_pull_dates #get pandas df of R object
@@ -1558,7 +1650,6 @@ for i in range(len(pp.guid)):
     else:
       empty_lists = empty_lists + 1
 ```
-
 
 ```{r downloads by hour no sloan_id}
 downloads_byhour_nosloanid <- py$downloads_byhour_nosloanid %>%
@@ -1709,3 +1800,15 @@ for i in range(len(pp.guid)):
     else:
       empty_lists = empty_lists + 1
 ```
+
+```{r downloads by second no sloan_id}
+downloads_bysecond_nosloanid <- py$downloads_bysecond_nosloanid %>%
+                                      as_tibble() %>%
+                                      unnest(download_count)
+
+write_csv(downloads_bysecond_nosloanid, 'downloads_bysecond_nosloanid.csv')
+```
+
+
+
+

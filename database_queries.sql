@@ -8,7 +8,7 @@ WITH pp_finished AS (SELECT id,
 						CASE WHEN osf_preprint.created < '2020-06-04 14:42:50.148795+00:00' THEN 'pre_exp' ELSE 'during_exp' END AS timeframe
 					FROM osf_preprint
 					WHERE osf_preprint.created >= '2020-04-30 20:37:53.449468+00:00' AND osf_preprint.created <= '2020-07-09 14:42:50.148795+00:00' AND 
-							provider_id != 7)
+							provider_id != 7 AND (spam_status != 2 OR spam_status IS NULL))
 
 /* count up preprints by finished state and provider during/before experiment */
 SELECT COUNT(pp_finished.id) num_pps, 
